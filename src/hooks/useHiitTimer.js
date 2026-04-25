@@ -4,6 +4,7 @@ import {
   playRestBell,
   playEndBell,
   playLast10SecondsSound,
+  stopLast10SecondsSound,
 } from '../utils/sounds'
 
 const PHASES = { IDLE: 'idle', WORK: 'work', REST: 'rest', FINISHED: 'finished' }
@@ -25,6 +26,13 @@ export function useHiitTimer({ workDuration, restDuration, rounds }) {
     roundsRef.current = rounds
   }, [workDuration, restDuration, rounds])
 
+  // Sync timeLeft when duration changes while idle
+  useEffect(() => {
+    if (phase === PHASES.IDLE) {
+      setTimeLeft(workDuration)
+    }
+  }, [workDuration, phase])
+
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
@@ -42,6 +50,7 @@ export function useHiitTimer({ workDuration, restDuration, rounds }) {
 
   const pause = useCallback(() => {
     setIsPaused(true)
+    stopLast10SecondsSound()
     clearTimer()
   }, [clearTimer])
 
@@ -49,6 +58,7 @@ export function useHiitTimer({ workDuration, restDuration, rounds }) {
 
   const reset = useCallback(() => {
     clearTimer()
+    stopLast10SecondsSound()
     setPhase(PHASES.IDLE)
     setCurrentRound(1)
     setTimeLeft(workDurationRef.current)
@@ -67,8 +77,8 @@ export function useHiitTimer({ workDuration, restDuration, rounds }) {
   }, [phase, isPaused, clearTimer])
 
   useEffect(() => {
-    // 10-second warning during work phase
-    if (phase === PHASES.WORK && timeLeft === 10) {
+    // 10-second warning during active work phase (not paused)
+    if (phase === PHASES.WORK && !isPaused && timeLeft === 11) {
       playLast10SecondsSound()
     }
 
@@ -90,7 +100,7 @@ export function useHiitTimer({ workDuration, restDuration, rounds }) {
       setTimeLeft(workDurationRef.current)
       playStartSound()
     }
-  }, [timeLeft, phase, currentRound, clearTimer])
+  }, [timeLeft, phase, currentRound, isPaused, clearTimer])
 
   return {
     phase,

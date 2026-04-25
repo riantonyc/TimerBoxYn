@@ -4,6 +4,7 @@ import {
   playRestBell,
   playEndBell,
   playLast10SecondsSound,
+  stopLast10SecondsSound,
 } from '../utils/sounds'
 
 const PHASES = {
@@ -47,6 +48,7 @@ export function useTimer({ roundDuration, restDuration, totalRounds }) {
 
   const pause = useCallback(() => {
     setIsPaused(true)
+    stopLast10SecondsSound()
     clearTimer()
   }, [clearTimer])
 
@@ -54,6 +56,7 @@ export function useTimer({ roundDuration, restDuration, totalRounds }) {
 
   const reset = useCallback(() => {
     clearTimer()
+    stopLast10SecondsSound()
     setPhase(PHASES.IDLE)
     setCurrentRound(1)
     setTimeLeft(roundDurationRef.current)
@@ -79,10 +82,17 @@ export function useTimer({ roundDuration, restDuration, totalRounds }) {
     return () => clearTimer()
   }, [phase, isPaused, clearTimer])
 
+  // Sync timeLeft when duration changes while idle
+  useEffect(() => {
+    if (phase === PHASES.IDLE) {
+      setTimeLeft(roundDuration)
+    }
+  }, [roundDuration, phase])
+
   // Phase transition & 10-second warning
   useEffect(() => {
-    // 10-second warning: only during round (not rest)
-    if (phase === PHASES.ROUND && timeLeft === 10) {
+    // 10-second warning: only during active round (not paused)
+    if (phase === PHASES.ROUND && !isPaused && timeLeft === 10) {
       playLast10SecondsSound()
     }
 
@@ -105,7 +115,7 @@ export function useTimer({ roundDuration, restDuration, totalRounds }) {
       setTimeLeft(roundDurationRef.current)
       playStartSound()
     }
-  }, [timeLeft, phase, currentRound, clearTimer])
+  }, [timeLeft, phase, currentRound, isPaused, clearTimer])
 
   return {
     phase,

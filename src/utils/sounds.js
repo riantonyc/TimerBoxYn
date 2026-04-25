@@ -2,6 +2,7 @@
 // All sounds are triggered by calling these functions
 
 let audioInstances = []
+let last10Audio = null
 
 export function playStartSound() {
   const audio = new Audio('/sound/StartTimer.mp3')
@@ -13,12 +14,25 @@ export function playStartSound() {
 }
 
 export function playLast10SecondsSound() {
+  // Stop any previously playing last-10-second audio
+  stopLast10SecondsSound()
   const audio = new Audio('/sound/LastRound_10Second.mp3')
+  last10Audio = audio
   audioInstances.push(audio)
   audio.play().catch(() => {})
   audio.addEventListener('ended', () => {
     audioInstances = audioInstances.filter(a => a !== audio)
+    if (last10Audio === audio) last10Audio = null
   })
+}
+
+export function stopLast10SecondsSound() {
+  if (last10Audio) {
+    last10Audio.pause()
+    last10Audio.currentTime = 0
+    audioInstances = audioInstances.filter(a => a !== last10Audio)
+    last10Audio = null
+  }
 }
 
 // Fallback Web Audio API bell (used if MP3 fails or for rest transition)
