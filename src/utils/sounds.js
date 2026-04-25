@@ -4,10 +4,47 @@
 let audioInstances = []
 let last10Audio = null
 
+// Ensure AudioContext is unlocked on mobile (must be called inside a user gesture)
+let audioContext = null
+
+function getAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)()
+  }
+  // Resume if suspended (mobile browsers suspend until user interaction)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume()
+  }
+  return audioContext
+}
+
+// Call this once on first user interaction (e.g., a tap/click anywhere)
+export function unlockAudio() {
+  const a = new Audio()
+  a.play().catch(() => {})
+  a.pause()
+  getAudioContext()
+}
+
+// Automatically unlock AudioContext on first user interaction (mobile requirement)
+function setupAutoUnlock() {
+  const unlock = () => {
+    unlockAudio()
+    document.removeEventListener('click', unlock)
+    document.removeEventListener('touchstart', unlock)
+  }
+  document.addEventListener('click', unlock, { once: true })
+  document.addEventListener('touchstart', unlock, { once: true })
+}
+
+if (typeof document !== 'undefined') {
+  setupAutoUnlock()
+}
+
 export function playStartSound() {
   const audio = new Audio('/sound/StartTimer.mp3')
   audioInstances.push(audio)
-  audio.play().catch(() => {})
+  audio.play().catch(err => console.warn('Start sound blocked:', err))
   audio.addEventListener('ended', () => {
     audioInstances = audioInstances.filter(a => a !== audio)
   })
@@ -19,7 +56,7 @@ export function playLast10SecondsSound() {
   const audio = new Audio('/sound/LastRound_10Second.mp3')
   last10Audio = audio
   audioInstances.push(audio)
-  audio.play().catch(() => {})
+  audio.play().catch(err => console.warn('Last 10s sound blocked:', err))
   audio.addEventListener('ended', () => {
     audioInstances = audioInstances.filter(a => a !== audio)
     if (last10Audio === audio) last10Audio = null
@@ -33,16 +70,6 @@ export function stopLast10SecondsSound() {
     audioInstances = audioInstances.filter(a => a !== last10Audio)
     last10Audio = null
   }
-}
-
-// Fallback Web Audio API bell (used if MP3 fails or for rest transition)
-let audioContext = null
-
-function getAudioContext() {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)()
-  }
-  return audioContext
 }
 
 function playBell(frequency, duration, volume = 0.4) {
